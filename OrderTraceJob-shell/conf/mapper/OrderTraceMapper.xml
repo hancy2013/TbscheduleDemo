@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN"
+"http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+
+
+<!-- 不使用namespace的话sql搜索定位会比较方便 -->
+<mapper namespace="com.dang.OrderTraceJob.dto.WMSOrderTrace">
+
+	<resultMap id="RM_Ordertrace" type="com.dang.OrderTraceJob.dto.WMSOrderTrace">
+        <result property="id" column="id"/>
+        <result property="oid" column="oid"/>
+        <result property="event_name" column="event_name"/>
+        <result property="event_time" column="event_time"/>
+        <result property="event_info" column="event_info"/>
+        <result property="event_location" column="event_location"/>
+        <result property="extract_flag" column="extract_flag"/>
+	</resultMap>
+	
+	<!-- 用于select查询公用抽取的列 -->
+	<sql id="columns">
+	    <![CDATA[
+		"id","oid","event_name","event_time","event_info","event_location","extract_flag"
+	    ]]>
+	</sql>
+
+	<!-- useGeneratedKeys="true" keyProperty="xxx" for sqlserver and mysql -->
+	<insert id="insert" useGeneratedKeys="true" keyProperty="id">
+    <![CDATA[
+        INSERT INTO ORDER_TRACE (
+        	"id" ,
+        	"oid" ,
+        	"event_name" ,
+        	"event_time" ,
+        	"event_info" ,
+        	"event_location" ,
+        	"extract_flag" 
+        ) VALUES (
+        	#{id} ,
+        	#{oid} ,
+        	#{event_name} ,
+        	#{event_time} ,
+        	#{event_info} ,
+        	#{event_location} ,
+        	#{extract_flag} 
+        )
+    ]]>
+		<!--	
+			oracle: order="BEFORE" SELECT sequenceName.nextval AS ID FROM DUAL 
+			DB2: order="BEFORE"" values nextval for sequenceName
+		<selectKey resultType="java.lang.Long" order="BEFORE" keyProperty="userId">
+			SELECT sequenceName.nextval AS ID FROM DUAL 
+        </selectKey>
+		-->
+	</insert>
+	
+	
+     <sql id="update_sql">
+         <set>
+                <if test="oid != null and oid != ''">
+	         	oid = #{oid} ,
+	         </if>
+                <if test="eventName != null and eventName != ''">
+	         	event_name = #{eventName} ,
+	         </if>
+                <if test="eventTime != null">
+	         	event_time = #{eventTime} ,
+	       </if>
+                <if test="eventInfo != null and eventInfo != ''">
+	         	event_info = #{eventInfo} ,
+	         </if>
+                <if test="eventLocation != null and eventLocation != ''">
+	         	event_location = #{eventLocation} ,
+	         </if>
+                <if test="extractFlag != null and extractFlag != ''">
+	         	extract_flag = #{extractFlag} 
+	         </if>
+       </set>
+    </sql>
+    
+	<update id="update" >
+	        UPDATE  ordertrace
+	    <include refid="update_sql" />
+	        WHERE 
+	                id = #{id} 
+	</update>
+
+    <delete id="delete">
+    <![CDATA[
+        DELETE FROM ordertrace WHERE
+        id = #{id} 
+    ]]>
+    </delete>
+    
+    <select id="getById" resultMap="RM_Ordertrace">
+		SELECT <include refid="columns" />
+	    <![CDATA[
+		    FROM ordertrace 
+	        WHERE 
+		        id = #{id} 
+	    ]]>
+	</select>
+	
+	<update id="updateExtractFlag" >
+	        UPDATE  ORDER_TRACE
+	        SET "extract_flag"='1'
+	        WHERE "id" = #{id} 
+	</update>
+	
+	<select id="getByTbschedule" resultMap="RM_Ordertrace">
+		SELECT <include refid="columns" />
+	    <![CDATA[
+		    FROM ORDER_TRACE 
+	        where mod(to_number("oid"),#{taskItemNum})=#{taskItemId}
+	        and "extract_flag"='0'
+	        and rownum<=500
+	    ]]>
+	</select>
+	
+	<sql id="findPage_where">
+		<!-- ognl访问静态方法的表达式 为@class@method(args),以下为调用rapid中的Ognl.isNotEmpty()方法,还有其它方法如isNotBlank()可以使用，具体请查看Ognl类 -->
+		<where>	      				
+                <if test="id != null and id !=''">
+		             AND id = #{id}
+	            </if>
+                <if test="oid != null and oid !=''">
+		             AND oid = #{oid}
+	            </if>
+                <if test="eventName != null and eventName !=''">
+		             AND event_name = #{eventName}
+	            </if>
+		       <if test="eventTimeBegin != null">
+					AND event_time >= #{eventTimeBegin}
+			   </if>
+			   <if test="eventTimeEnd != null">
+					AND event_time &lt;= #{eventTimeEnd}
+			   </if>
+                <if test="eventInfo != null and eventInfo !=''">
+		             AND event_info = #{eventInfo}
+	            </if>
+                <if test="eventLocation != null and eventLocation !=''">
+		             AND event_location = #{eventLocation}
+	            </if>
+                <if test="extractFlag != null and extractFlag !=''">
+		             AND extract_flag = #{extractFlag}
+	            </if>
+		</where>
+	</sql>
+		
+    <select id="findPage_count" resultType="long">
+        SELECT count(*) FROM ordertrace 
+		<include refid="findPage_where"/>    
+    </select>
+    
+    <!--
+    	分页查询已经使用Dialect进行分页,也可以不使用Dialect直接编写分页
+    	因为分页查询将传 offset,pageSize,lastRows 三个参数,不同的数据库可以根于此三个参数属性应用不同的分页实现
+    -->
+    <select id="findPage" resultMap="RM_Ordertrace">
+    	SELECT <include refid="columns" />
+	    FROM ordertrace 
+		<include refid="findPage_where"/>
+		
+		<if test="sortColumns != null and sortColumns !=''">
+			ORDER BY ${sortColumns}
+		</if>
+    </select>
+
+	
+</mapper>
+
